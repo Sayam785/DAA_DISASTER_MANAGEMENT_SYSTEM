@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ResQFlow – Disaster Response System</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ── Reset ─────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surf:#1a1d27;--surf2:#22263a;--bord:#2e3248;
+  --blue:#3b82f6;--green:#22c55e;--red:#ef4444;--orange:#f97316;
+  --yellow:#eab308;--txt:#e5e7eb;--muted:#9ca3af;
+}
+body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.6}
+input,select,textarea{
+  width:100%;background:#0a0c12;color:var(--txt);
+  border:1px solid var(--bord);border-radius:5px;
+  padding:8px 10px;font-size:.875rem;outline:none;
+  transition:border-color .15s
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+textarea{resize:vertical}
+button{cursor:pointer;border:none;border-radius:5px;font-weight:600;font-size:.875rem;padding:8px 16px;transition:opacity .15s}
+button:hover{opacity:.85}
+.btn-blue  {background:var(--blue);  color:#fff}
+.btn-green {background:var(--green); color:#fff}
+.btn-red   {background:var(--red);   color:#fff}
+.btn-orange{background:var(--orange);color:#fff}
+.btn-gray  {background:var(--surf2); color:var(--txt);border:1px solid var(--bord)}
+.btn-sm    {padding:5px 12px;font-size:.8rem}
+.btn-xs    {padding:3px 8px; font-size:.75rem}
+.btn-full  {display:block;width:100%}
+.hidden{display:none!important}
+.card{background:var(--surf);border:1px solid var(--bord);border-radius:8px;padding:18px;margin-bottom:14px}
+.card h3{font-size:1rem;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--bord);color:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fg{margin-bottom:10px}
+.fg label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:3px}
+.msg-ok {color:var(--green);font-size:.82rem;margin-top:6px;min-height:16px}
+.msg-err{color:var(--red);  font-size:.82rem;margin-top:6px;min-height:16px}
+/* header */
+header{background:var(--surf);border-bottom:2px solid var(--blue);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+header h1{font-size:1.3rem;font-weight:800;color:#fff}
+header p{font-size:.72rem;color:var(--muted)}
+.hdr-right{display:flex;align-items:center;gap:10px;font-size:.82rem;color:var(--muted)}
+/* login */
+#login-box{max-width:360px;margin:60px auto}
+/* nav */
+nav{background:var(--surf);border-bottom:1px solid var(--bord);display:flex;flex-wrap:wrap;gap:4px;padding:10px 16px;position:sticky;top:57px;z-index:100}
+.nav-btn{background:none;border:1px solid var(--bord);color:var(--muted);padding:6px 14px;border-radius:4px;font-size:.82rem}
+.nav-btn:hover{background:var(--surf2);color:var(--txt)}
+.nav-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+/* panels */
+.panel{max-width:1100px;margin:0 auto;padding:18px 16px}
+/* badges */
+.badge{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:12px;text-transform:uppercase}
+.b-emg {background:var(--red);   color:#fff;animation:pulse 1.2s infinite alternate}
+.b-norm{background:var(--blue);  color:#fff}
+.b-pend{background:#d97706;      color:#fff}
+.b-prog{background:var(--blue);  color:#fff}
+.b-res {background:var(--green); color:#fff}
+@keyframes pulse{from{opacity:1}to{opacity:.5}}
+/* disaster cards */
+.d-card{background:var(--surf);border:1px solid var(--bord);border-left:4px solid;border-radius:8px;padding:14px;margin-bottom:10px}
+.d-emg {border-left-color:var(--red)}
+.d-norm{border-left-color:var(--blue)}
+.d-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.d-title{font-weight:700;font-size:.95rem;color:#fff}
+.d-sub{font-size:.75rem;color:var(--muted);margin-top:2px}
+.d-body{font-size:.85rem;color:var(--muted);margin:6px 0}
+.d-foot{display:flex;flex-wrap:wrap;gap:12px;font-size:.76rem;color:var(--muted);border-top:1px solid var(--bord);padding-top:8px;margin-top:8px}
+.d-assigned{font-size:.75rem;color:var(--green);margin-top:4px}
+/* volunteer grid */
+.vol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-height:360px;overflow-y:auto}
+.v-card{background:var(--surf2);border:1px solid var(--bord);border-top:3px solid;border-radius:6px;padding:10px;font-size:.8rem}
+.v-avail{border-top-color:var(--green)}
+.v-busy {border-top-color:var(--orange)}
+.v-id{font-weight:700;color:#fff}
+.v-name{color:var(--muted);font-size:.76rem}
+.v-group{color:var(--blue);font-size:.72rem;margin:2px 0 4px}
+.v-loc{color:var(--muted);font-size:.71rem}
+/* updates */
+.upd{padding:8px 12px;border-radius:5px;border-left:3px solid;margin-bottom:6px;font-size:.82rem}
+.upd-normal  {background:#0d1f0d;border-left-color:var(--green)}
+.upd-crisis  {background:#1f1408;border-left-color:var(--orange)}
+.upd-casualty{background:#1f0808;border-left-color:var(--red);animation:pulse .8s infinite alternate}
+/* map */
+#main-map{width:100%;height:480px;border-radius:8px;border:1px solid var(--bord)}
+.map-legend{display:flex;gap:16px;margin-bottom:8px;font-size:.8rem;color:var(--muted)}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+/* algo */
+.algo-box{background:#0d1f12;border:1px solid #22543d;border-radius:6px;padding:14px;margin-top:10px;font-size:.83rem}
+.algo-warn{background:#1f1408;border:1px solid #92400e}
+.algo-err{color:var(--red);font-size:.82rem;padding:8px;background:#1f0808;border-radius:5px;border:1px solid #7f1d1d;margin-top:8px}
+.algo-desc{font-size:.8rem;color:var(--muted);margin-bottom:10px;line-height:1.5}
+table.at{width:100%;border-collapse:collapse;font-size:.81rem;margin-top:6px}
+table.at th{background:rgba(0,0,0,.3);color:var(--muted);padding:5px 8px;border:1px solid var(--bord);text-align:left;font-weight:600}
+table.at td{padding:5px 8px;border:1px solid var(--bord)}
+table.at tr.emg td{background:rgba(239,68,68,.07)}
+#route-map,#vol-route-map{width:100%;height:280px;border-radius:6px;border:1px solid var(--bord);margin-top:10px}
+/* mission hub */
+.mis-stat{background:var(--surf2);border:1px solid var(--bord);border-radius:6px;padding:10px;text-align:center}
+.mis-stat .lbl{font-size:.71rem;color:var(--muted);display:block}
+.mis-stat .val{font-size:.95rem;font-weight:700;color:#fff}
+.admin-msg-box{background:#0c1a2e;border:1px solid #1e3a5f;border-radius:6px;padding:10px;color:#93c5fd;font-size:.875rem}
+/* checkbox */
+.chk-row{display:flex;align-items:center;gap:8px}
+.chk-row input[type=checkbox]{width:auto}
+.chk-label{color:var(--red);font-weight:600}
+/* empty */
+.empty{text-align:center;padding:30px;color:var(--muted);font-style:italic}
+/* scrollbar */
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bord);border-radius:3px}
+/* leaflet custom */
+.mk-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:#fff;border:2px solid rgba(255,255,255,.35)}
+.mk-red{background:var(--red)}.mk-blue{background:var(--blue)}.mk-orange{background:var(--orange)}
+.map-lbl span{background:rgba(0,0,0,.6);color:#fff;font-size:.62rem;padding:2px 4px;border-radius:3px;white-space:nowrap}
+@media(max-width:640px){.row,.row3{grid-template-columns:1fr}.vol-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<header>
+  <div>
+    <h1>🚨 ResQFlow</h1>
+    <p>DAA-Based Intelligent Disaster Response — Dehradun</p>
+  </div>
+  <div class="hdr-right hidden" id="hdr-user">
+    Logged in as <strong id="hdr-name" style="color:#fff;margin:0 6px"></strong>
+    <button class="btn-red btn-sm" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<!-- ══ LOGIN ════════════════════════════════════════════════════════════════ -->
+<div id="login-box" class="card">
+  <h3 style="border:none;padding:0;margin-bottom:14px">🔐 System Login</h3>
+  <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
+    Demo: <strong>admin</strong>/admin123 &nbsp;·&nbsp;
+    <strong>v101</strong>/1234 &nbsp;·&nbsp;
+    <strong>user1</strong>/1234
+  </p>
+  <div class="fg"><label>Username</label><input id="u-user" placeholder="admin / v101-v120 / user1-user20"/></div>
+  <div class="fg"><label>Password</label><input id="u-pass" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+  <button class="btn-blue btn-full" onclick="doLogin()">Login</button>
+  <p id="login-err" class="msg-err"></p>
+</div>
+
+<!-- ══ APP ══════════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- NAV -->
+  <nav>
+    <button class="nav-btn" id="n-view"      onclick="go('view')">📋 Disasters</button>
+    <button class="nav-btn hidden" id="n-report"   onclick="go('report')">🚨 Report Disaster</button>
+    <button class="nav-btn hidden" id="n-vol"      onclick="go('volunteer')">🧑‍🚒 Mission Hub</button>
+    <button class="nav-btn hidden" id="n-admin"    onclick="go('admin')">⚙️ Admin Panel</button>
+    <button class="nav-btn hidden" id="n-algo"     onclick="go('algo')">🔬 Algorithms</button>
+    <button class="nav-btn" id="n-map"       onclick="go('map')">🗺️ Live Map</button>
+  </nav>
+
+  <!-- ── PANEL: Disasters ──────────────────────────────────────────────── -->
+  <div class="panel hidden" id="p-view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 id="d-panel-title" style="font-size:1.05rem;font-weight:700">Disaster Reports (Priority Order)</h2>
+      <button class="btn-gray btn-sm" onclick="loadDisasters()">⟳ Refresh</button>
+    </div>
+    <p style="font-size:.76rem;color:var(--muted);margin-bottom:10px">
+      Sorted by Heap Priority: Emergency &gt; Severity &gt; Report Time
+    </p>
+    <div id="d-list"></div>
+  </div>
+
+  <!-- ── PANEL: Report Disaster (user) ────────────────────────────────── -->
+  <div class="panel hidden" id="p-report">
+    <h2 style="font-size:1.05rem;font-weight:700;margin-bottom:14px">🚨 Submit New Incident Report</h2>
+    <div class="card">
+      <div class="fg chk-row">
+        <input type="checkbox" id="r-emg" style="width:auto"/>
+        <span class="chk-label">⚠️ Mark as CRITICAL EMERGENCY</span>
+      </div>
+      <div class="row">
+        <div class="fg">
+          <label>Disaster Type</label>
+          <select id="r-type">
+            <option value="">-- Select --</option>
+            <option>Fire</option><option>Flood</option><option>Earthquake</option>
+            <option>Landslide</option><option>Medical</option><option>Accident</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Location</label>
+          <select id="r-loc">
+            <option value="">-- Select --</option>
+            <option>Clock Tower</option><option>ISBT</option><option>Rajpur Road</option>
+            <option>Prem Nagar</option><option>Jakhan</option><option>Sahastradhara</option>
+            <option>Ballupur</option><option>Clement Town</option><option>Dalanwala</option><option>Raipur</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="fg"><label>Severity (1-10)</label><input type="number" id="r-sev" min="1" max="10" placeholder="e.g. 7"/></div>
+        <div class="fg"><label>Personnel Needed</label><input type="number" id="r-vol" min="1" placeholder="e.g. 3"/></div>
+      </div>
+      <div class="fg"><label>Supplies Needed (comma-separated)</label><input id="r-sup" placeholder="e.g. Water, Blankets, First Aid"/></div>
+      <div class="fg"><label>Description</label><textarea id="r-desc" rows="3" placeholder="Describe the situation in detail..."></textarea></div>
+      <div class="fg"><label>Proof Photo (optional)</label><input type="file" id="r-photo" accept="image/*"/></div>
+      <button class="btn-blue btn-full" onclick="doReport()">Submit Report</button>
+      <p id="r-msg" class="msg-ok"></p>
+    </div>
+  </div>
+
+  <!-- ── PANEL: Volunteer Mission Hub ─────────────────────────────────── -->
+  <div class="panel hidden" id="p-volunteer">
+    <h2 style="font-size:1.05rem;font-weight:700;margin-bottom:14px">🧑‍🚒 Mission Hub</h2>
+    <div id="v-no-mission" class="card empty">You are not assigned to any mission. Standby for deployment.</div>
+    <div id="v-mission" class="hidden">
+      <div class="card">
+        <h3>Current Mission</h3>
+        <div id="v-mission-grid" class="row3" style="margin-bottom:10px"></div>
+      </div>
+      <div class="card">
+        <h3>🗒️ Admin Deployment Message</h3>
+        <p id="v-admin-msg" class="admin-msg-box">No instructions provided.</p>
+      </div>
+      <div class="card">
+        <h3>👥 Team Members</h3>
+        <p id="v-team" style="color:var(--green);font-size:.875rem"></p>
+      </div>
+      <div class="card">
+        <h3>📍 Shortest Route (Dijkstra)</h3>
+        <button class="btn-blue btn-sm" onclick="loadVolRoute()">Compute Route</button>
+        <div id="v-route-result" class="hidden"></div>
+        <div id="vol-route-map" class="hidden"></div>
+      </div>
+      <div class="card">
+        <h3>📤 Send Situation Update to Admin</h3>
+        <div class="fg">
+          <label>Priority</label>
+          <select id="upd-pri">
+            <option value="Normal">Normal (Progress update)</option>
+            <option value="Crisis">Crisis (Need more help)</option>
+            <option value="Casualty">Casualty Report (URGENT)</option>
+          </select>
+        </div>
+        <div class="fg"><textarea id="upd-desc" rows="3" placeholder="Describe current field status..."></textarea></div>
+        <div class="fg"><label>Photo (optional)</label><input type="file" id="upd-photo" accept="image/*"/></div>
+        <button class="btn-blue btn-full" onclick="doSendUpdate()">Send Update</button>
+        <p id="upd-msg" class="msg-ok"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: Admin ──────────────────────────────────────────────────── -->
+  <div class="panel hidden" id="p-admin">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="font-size:1.05rem;font-weight:700">⚙️ Admin Control Panel</h2>
+      <button class="btn-gray btn-sm" onclick="loadAdmin()">⟳ Refresh</button>
+    </div>
+
+    <!-- assign volunteers -->
+    <div class="card">
+      <h3>👤 Assign Volunteer to Disaster</h3>
+      <div class="row">
+        <div class="fg">
+          <label>Select Disaster</label>
+          <select id="a-dsel"></select>
+        </div>
+        <div class="fg">
+          <label>Select Volunteer</label>
+          <select id="a-vsel"></select>
+        </div>
+      </div>
+      <div class="fg"><label>Deployment Message</label><input id="a-dmsg" placeholder="Instructions for volunteer..."/></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn-blue" onclick="doAssign()">Assign Selected</button>
+        <button class="btn-green" onclick="doAutoAssign()">Auto-Assign All Slots</button>
+      </div>
+      <p id="a-amsg" class="msg-ok"></p>
+    </div>
+
+    <!-- resolve -->
+    <div class="card">
+      <h3>✅ Resolve Disaster</h3>
+      <div class="fg"><label>Select Disaster to Resolve</label><select id="a-rsel"></select></div>
+      <div class="fg"><label>Resolution Photo (optional)</label><input type="file" id="a-rphoto" accept="image/*"/></div>
+      <button class="btn-red btn-full" onclick="doResolve()">Mark as RESOLVED</button>
+      <p id="a-resmsg" class="msg-ok"></p>
+    </div>
+
+    <!-- volunteer grid -->
+    <div class="card">
+      <h3>🧑‍💼 Volunteer Status (20 Personnel)</h3>
+      <div id="a-vol-grid" class="vol-grid"></div>
+    </div>
+
+    <!-- field updates -->
+    <div class="card">
+      <h3>📥 Field Updates from Volunteers</h3>
+      <div class="fg"><label>Select Disaster</label><select id="a-updsel" onchange="showUpdates()"></select></div>
+      <div id="a-updates"></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: Algorithms ──────────────────────────────────────────── -->
+  <div class="panel hidden" id="p-algo">
+    <h2 style="font-size:1.05rem;font-weight:700;margin-bottom:14px">🔬 DAA Algorithm Demonstrations</h2>
+
+    <!-- Heap Priority Queue -->
+    <div class="card">
+      <h3>🔺 Heap Priority Queue — Disaster Ordering</h3>
+      <p class="algo-desc">Shows active disasters sorted by the max-heap. Priority: Emergency flag → Severity → Timestamp. Push O(log n), Pop O(log n).</p>
+      <button class="btn-blue btn-sm" onclick="runHeap()">View Heap Order</button>
+      <div id="heap-out" class="hidden"></div>
+    </div>
+
+    <!-- Dijkstra -->
+    <div class="card">
+      <h3>📍 Dijkstra's Shortest Path</h3>
+      <p class="algo-desc">Finds shortest road route from a volunteer's location to a disaster site using Dijkstra on the Dehradun city graph. O((V+E) log V).</p>
+      <div class="row">
+        <div class="fg"><label>Volunteer</label><select id="dijk-vol"></select></div>
+        <div class="fg"><label>Disaster</label><select id="dijk-dis"></select></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <button class="btn-blue btn-sm" onclick="runDijkstra()">Run Dijkstra</button>
+        <button class="btn-gray btn-sm" onclick="findNearestVol()">Find Nearest Volunteer</button>
+      </div>
+      <div id="dijk-out" class="hidden"></div>
+      <div id="route-map" class="hidden"></div>
+    </div>
+
+    <!-- Knapsack -->
+    <div class="card">
+      <h3>🎒 0/1 Knapsack DP — Resource Optimization</h3>
+      <p class="algo-desc">Selects optimal volunteer subset under a resource budget using bottom-up Dynamic Programming. O(n × W) time and space.</p>
+      <div class="fg"><label>Select Disaster</label><select id="ks-dis"></select></div>
+      <button class="btn-blue btn-sm" onclick="runKnapsack()">Run Knapsack DP</button>
+      <div id="ks-out" class="hidden"></div>
+    </div>
+
+    <!-- Union-Find -->
+    <div class="card">
+      <h3>🔗 Disjoint Set / Union-Find — Network Connectivity</h3>
+      <p class="algo-desc">Validates city road network connectivity. Supports road disruption simulation. Union by Rank + Path Compression. O(α(n)) ≈ O(1) per op.</p>
+      <div class="row">
+        <div class="fg">
+          <label>Block Road: From</label>
+          <select id="uf-from">
+            <option value="">--</option>
+            <option>Clock Tower</option><option>ISBT</option><option>Rajpur Road</option>
+            <option>Prem Nagar</option><option>Jakhan</option><option>Sahastradhara</option>
+            <option>Ballupur</option><option>Clement Town</option><option>Dalanwala</option><option>Raipur</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Block Road: To</label>
+          <select id="uf-to">
+            <option value="">--</option>
+            <option>Clock Tower</option><option>ISBT</option><option>Rajpur Road</option>
+            <option>Prem Nagar</option><option>Jakhan</option><option>Sahastradhara</option>
+            <option>Ballupur</option><option>Clement Town</option><option>Dalanwala</option><option>Raipur</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn-red btn-sm" onclick="blockRoad()">Block Road</button>
+        <button class="btn-gray btn-sm" onclick="unblockRoad()">Restore Road</button>
+        <button class="btn-blue btn-sm" onclick="runUF()">Run Connectivity Check</button>
+      </div>
+      <div id="uf-out" class="hidden"></div>
+      <hr style="border-color:var(--bord);margin:14px 0"/>
+      <h4 style="margin-bottom:8px;font-size:.9rem">Volunteer–Disaster Reachability Check</h4>
+      <div class="row">
+        <div class="fg"><label>Volunteer</label><select id="reach-vol"></select></div>
+        <div class="fg"><label>Disaster</label><select id="reach-dis"></select></div>
+      </div>
+      <button class="btn-gray btn-sm" onclick="runReach()">Check Reachability</button>
+      <div id="reach-out" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: Map ────────────────────────────────────────────────────── -->
+  <div class="panel hidden" id="p-map">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h2 style="font-size:1.05rem;font-weight:700">🗺️ Live Disaster Map — Dehradun</h2>
+      <button class="btn-gray btn-sm" onclick="loadMap()">⟳ Refresh</button>
+    </div>
+    <div class="map-legend">
+      <span><span class="dot" style="background:var(--red)"></span>Disaster</span>
+      <span><span class="dot" style="background:var(--blue)"></span>Available Volunteer</span>
+      <span><span class="dot" style="background:var(--orange)"></span>Deployed Volunteer</span>
+      <span><span class="dot" style="background:var(--orange);opacity:.5"></span>Road Edge</span>
+    </div>
+    <div id="main-map"></div>
+  </div>
+
+</div><!-- /app -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
